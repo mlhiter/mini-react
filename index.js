@@ -20,22 +20,42 @@ function createTextElement(text) {
   }
 }
 
-function render(element, container) {
+function createDom(fiber) {
   const dom =
-    element.type == 'TEXT_ELEMENT'
+    fiber.type == 'TEXT_ELEMENT'
       ? document.createTextNode('')
-      : document.createElement(element.type)
+      : document.createElement(fiber.type)
 
   const isProperty = (key) => key !== 'children'
-  Object.keys(element.props)
+  Object.keys(fiber.props)
     .filter(isProperty)
     .forEach((name) => {
-      dom[name] = element.props[name]
+      dom[name] = fiber.props[name]
     })
 
-  element.props.children.forEach((child) => render(child, dom))
+  return dom
+}
 
-  container.appendChild(dom)
+function render(element, container) {}
+
+// 下一个单元的工作
+let nextUnitOfWork = null
+
+function workLoop(deadline) {
+  // 是否应该停止
+  let shouldYield = false
+  while (nextUnitOfWork && !shouldYield) {
+    nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
+    shouldYield = deadline.timeRemaining() < 1
+  }
+  requestIdleCallback(workLoop)
+}
+
+requestIdleCallback(workLoop)
+
+// 执行工作并且返回下一个工作单元
+function performUnitOfWork(unitOfWork) {
+  // TODO
 }
 
 const React = {
