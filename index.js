@@ -84,17 +84,30 @@ function commitRoot() {
 function commitWork(fiber) {
   if (!fiber) return
 
+  let domParentFiber = fiber.parent
+  while (!domParentFiber.dom) {
+    domParentFiber = domParentFiber.parent
+  }
   const domParent = fiber.parent.dom
+
   if (fiber.effectTag === 'PLACEMENT' && fiber.dom) {
     domParent.appendChild(fiber.dom)
   } else if (fiber.effectTag === 'UPDATE' && fiber.dom) {
     updateDom(fiber.dom, fiber.alternate.props, fiber.props)
   } else if (fiber.effectTag === 'DELETION') {
-    domParent.removeChild(fiber.dom)
+    commitDeletion(fiber, domParent)
   }
 
   commitWork(fiber.child)
   commitWork(fiber.sibling)
+}
+
+function commitDeletion(fiber, domParent) {
+  if (fiber.dom) {
+    domParent.removeChild(fiber.dom)
+  } else {
+    commitDeletion(fiber.child, domParent)
+  }
 }
 
 function render(element, container) {
@@ -135,17 +148,13 @@ requestIdleCallback(workLoop)
 
 // 执行工作并且返回下一个工作单元
 function performUnitOfWork(fiber) {
-  // TODO add dom node
-  if (!fiber.dom) {
-    fiber.dom = createDom(fiber)
+  // TODO check if it is a function component
+  const isFunctionComponent = fiber.type instanceof Function
+  if (isFunctionComponent) {
+    updateFunctionComponent(fiber)
+  } else {
+    updateHostComponent(fiber)
   }
-  // if (fiber.parent) {
-  //   fiber.parent.dom.appendChild(fiber.dom)
-  // }
-
-  // TODO create new fibers
-  const elements = fiber.props.children
-  reconcileChildren(fiber, elements)
 
   // TODO return next unit of work
   if (fiber.child) {
@@ -158,6 +167,21 @@ function performUnitOfWork(fiber) {
     }
     nextFiber = nextFiber.parent
   }
+}
+
+function updateFunctionComponent(fiber) {
+  const children = [fiber.type(fiber.props)]
+  reconcileChildren(fiber, children)
+}
+
+function updateHostComponent(fiber) {
+  // TODO add dom node
+  if (!fiber.dom) {
+    fiber.dom = createDom(fiber)
+  }
+  // TODO create new fibers
+  const elements = fiber.props.children
+  reconcileChildren(fiber, elements)
 }
 
 function reconcileChildren(wipFiber, elements) {
@@ -219,12 +243,11 @@ const React = {
 }
 
 /**@jsx React.createElement */
-const element = (
-  <div id="foo">
-    <a>Hello World!</a>
-    <b />
-  </div>
-)
+function App(props) {
+  return <h1>Hi,{props.name}</h1>
+}
+// Function component 的fiber没有dom节点，并且children来自运行function而不是直接来自props
 
+const element = <App name="foo" />
 const container = document.getElementById('root')
 React.render(element, container)
