@@ -155,7 +155,7 @@ function performUnitOfWork(fiber) {
     updateHostComponent(fiber)
   }
 
-  // TODO return next unit of work
+  // Return next unit of work
   if (fiber.child) {
     return fiber.child
   }
@@ -263,7 +263,9 @@ function reconcileChildren(wipFiber, elements) {
       deletions.push(oldFiber)
     }
 
-    console.log(newFiber)
+    if (oldFiber) {
+      oldFiber = oldFiber.sibling
+    }
 
     // 第一个子项设置为子项，其余项设置为兄弟项
     if (index === 0) {
