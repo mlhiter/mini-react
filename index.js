@@ -26,20 +26,17 @@ function createDom(fiber) {
       ? document.createTextNode('')
       : document.createElement(fiber.type)
 
-  Object.keys(fiber.props)
-    .filter(isProperty)
-    .forEach((name) => {
-      dom[name] = fiber.props[name]
-    })
+  updateDom(dom, {}, fiber.props)
 
   return dom
 }
 
 const isEvent = (key) => key.startsWith('on') //事件侦听器
 const isProperty = (key) => key !== 'children' && !isEvent(key) //属性
-const isNew = (prev, next) => (key) => prev[key] !== next[key]
-const isGone = (prev, next) => (key) => !(key in next)
+const isNew = (prev, next) => (key) => prev[key] !== next[key] //是否发生变化
+const isGone = (prev, next) => (key) => !(key in next) //是否不在新的DOM里
 
+// 更新DOM：包括CRUD properties和event listeners
 function updateDom(dom, prevProps, nextProps) {
   // Remove old or changed event listeners
   Object.keys(prevProps)
@@ -49,14 +46,15 @@ function updateDom(dom, prevProps, nextProps) {
       const eventType = name.toLowerCase().substring(2)
       dom.removeEventListener(eventType, prevProps[name])
     })
-  // TODO Remove old properties
+  // Remove old properties
   Object.keys(prevProps)
     .filter(isProperty)
+    .filter(isGone(prevProps, nextProps))
     .forEach((name) => {
       dom[name] = ''
     })
 
-  // TODO Set new or changed properties
+  // Set new or changed properties
   Object.keys(nextProps)
     .filter(isProperty)
     .filter(isNew(prevProps, nextProps))
@@ -64,7 +62,7 @@ function updateDom(dom, prevProps, nextProps) {
       dom[name] = nextProps[name]
     })
 
-  // TODO Add event listeners
+  // Add event listeners
   Object.keys(nextProps)
     .filter(isEvent)
     .filter(isNew(prevProps, nextProps))
@@ -74,8 +72,9 @@ function updateDom(dom, prevProps, nextProps) {
     })
 }
 
+// 根节点上的提交事件：包括删除所有待删除的节点和执行当前Root的commit事件
 function commitRoot() {
-  // TODO add node to dom
+  deletions.forEach(commitWork)
   commitWork(wipRoot.child)
   currentRoot = wipRoot
   wipRoot = null
@@ -148,7 +147,7 @@ requestIdleCallback(workLoop)
 
 // 执行工作并且返回下一个工作单元
 function performUnitOfWork(fiber) {
-  // TODO check if it is a function component
+  // Check if it is a function component
   const isFunctionComponent = fiber.type instanceof Function
   if (isFunctionComponent) {
     updateFunctionComponent(fiber)
@@ -186,6 +185,7 @@ function useState(initial) {
     wipFiber.alternate &&
     wipFiber.alternate.hooks &&
     wipFiber.alternate.hooks[hookIndex]
+
   const hook = { state: oldHook ? oldHook.state : initial, queue: [] }
 
   const actions = oldHook ? oldHook.queue : []
@@ -211,11 +211,11 @@ function useState(initial) {
 }
 
 function updateHostComponent(fiber) {
-  // TODO add dom node
+  // Add dom node
   if (!fiber.dom) {
     fiber.dom = createDom(fiber)
   }
-  // TODO create new fibers
+  // Create new fibers
   const elements = fiber.props.children
   reconcileChildren(fiber, elements)
 }
@@ -228,12 +228,13 @@ function reconcileChildren(wipFiber, elements) {
   while (index < elements.length || oldFiber != null) {
     const element = elements[index]
     let newFiber = null
-    // TODO compare oldFiber to element
+
+    // Compare oldFiber to element
 
     const sameType = oldFiber && element && element.type == oldFiber.type
 
     if (sameType) {
-      // TODO update the node
+      // Update the node
       newFiber = {
         type: oldFiber.type,
         props: element.props,
@@ -245,7 +246,7 @@ function reconcileChildren(wipFiber, elements) {
     }
 
     if (element && !sameType) {
-      // TODO add this node
+      // Add this node
       newFiber = {
         type: element.type,
         props: element.props,
@@ -257,10 +258,12 @@ function reconcileChildren(wipFiber, elements) {
     }
 
     if (oldFiber && !sameType) {
-      // TODO delete the oldFiber's node
+      // Delete the oldFiber's node
       oldFiber.effectTag = 'DELETION' //将在提交阶段使用
       deletions.push(oldFiber)
     }
+
+    console.log(newFiber)
 
     // 第一个子项设置为子项，其余项设置为兄弟项
     if (index === 0) {
