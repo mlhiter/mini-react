@@ -88,7 +88,7 @@ function commitWork(fiber) {
   while (!domParentFiber.dom) {
     domParentFiber = domParentFiber.parent
   }
-  const domParent = fiber.parent.dom
+  const domParent = domParentFiber.dom
 
   if (fiber.effectTag === 'PLACEMENT' && fiber.dom) {
     domParent.appendChild(fiber.dom)
